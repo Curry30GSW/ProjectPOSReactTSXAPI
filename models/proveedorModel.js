@@ -7,6 +7,10 @@ const ProveedorModel = {
         return rows;
     },
 
+
+
+
+    
     // Obtener proveedor por ID
     getById: async (id_proveedor) => {
         const [rows] = await pool.query(

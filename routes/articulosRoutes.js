@@ -5,6 +5,9 @@ const articuloController = require('../controllers/articulosController');
 // Obtener todos los artículos
 router.get('/articulos', articuloController.getAll);
 
+// Buscar artículo por código o descripción
+router.get('/articulos/buscar', articuloController.buscar);
+
 // Obtener un artículo por ID
 router.get('/articulos/:id', articuloController.getById);
 
@@ -17,7 +20,6 @@ router.put('/actualizar-articulos/:id', articuloController.update);
 // Eliminar un artículo
 router.delete('/eliminar-articulos/:id', articuloController.delete);
 
-// Buscar artículo por código o descripción
-router.get('/articulos/buscar', articuloController.buscar);
+
 
 module.exports = router;

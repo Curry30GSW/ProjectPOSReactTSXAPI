@@ -1,12 +1,14 @@
 const pool = require('../config/db');
+const { getAll, getById, insert } = require('./clientesModel');
 
 
 const ArticuloModel = {
-    // Obtener todos los artículos
+    // // Obtener todos los artículos
     getAll: async () => {
         const [rows] = await pool.query("SELECT * FROM articulos");
         return rows;
     },
+
 
     // Obtener un artículo por ID
     getById: async (id_articulo) => {
@@ -19,18 +21,16 @@ const ArticuloModel = {
 
     // Insertar un nuevo artículo
     insert: async (data) => {
-        const connection = await pool.getConnection();
-        try {
-            await connection.beginTransaction();
+        const connection = await pool.getConnection()
 
-            // Validar que el código de barras no exista
+        try {
+            await connection.beginTransaction()
+
             const [existe] = await connection.query(
-                "SELECT COUNT(*) AS count FROM articulos WHERE codigo_barras = ?",
-                [data.codigo_barras]
-            );
+                "SELECT COUNT (*) AS count FROM  articulos WHERE codigo_barras = ?", [data.codigo_barras]);
 
             if (existe[0].count > 0) {
-                throw new Error("Ya existe un artículo con ese código de barras");
+                throw new Error("Hay un articulo con ese codigo de barras")
             }
 
             const limpiarValor = (valor) => {
@@ -39,31 +39,31 @@ const ArticuloModel = {
                 return parseFloat(valor.toString().replace(/[^\d.]/g, "")) || 0;
             };
 
-            const query = `
-        INSERT INTO articulos (codigo_barras, descripcion, precio, stock, peso)
-        VALUES (?, ?, ?, ?, ?)
-      `;
+
+            const query = `INSERT INTO articulos (descripcion, precio, stock, peso, codigo_barras) VALUES (?,?,?,?,?)`;
 
             const values = [
-                data.codigo_barras || null,
                 data.descripcion || null,
                 limpiarValor(data.precio),
                 parseInt(data.stock) || 0,
                 limpiarValor(data.peso),
-            ];
+                data.codigo_barras || null,
+            ]
 
             const [result] = await connection.query(query, values);
-            await connection.commit();
 
-            return { id_articulo: result.insertId, ...data };
+            await connection.commit()
+            return { id_articulo: result.insertId, ...data }
+
         } catch (error) {
-            await connection.rollback();
-            throw error;
+            await connection.rollback()
+            throw error
         } finally {
-            connection.release();
+            connection.release()
         }
-    },
 
+
+    },
     // Actualizar artículo
     update: async (id_articulo, data) => {
         const connection = await pool.getConnection();
@@ -129,13 +129,16 @@ const ArticuloModel = {
     },
 
     // Buscar artículo por código o descripción
-    buscar: async (codigoONombre) => {
+    buscar: async (q) => {
+        const like = `%${q}%`;
+
         const [rows] = await pool.query(
             `
-      SELECT * FROM articulos
-      WHERE codigo_barras = ? OR descripcion LIKE CONCAT('%', ?, '%')
-    `,
-            [codigoONombre, codigoONombre]
+            SELECT * FROM articulos
+            WHERE codigo_barras LIKE ? 
+               OR descripcion LIKE ?
+            `,
+            [like, like]
         );
         return rows;
     },

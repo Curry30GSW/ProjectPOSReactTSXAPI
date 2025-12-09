@@ -60,30 +60,68 @@ const FacturaModel = {
                 throw new Error("No hay productos válidos para guardar.");
             }
 
-            // Insertar factura
+            // 1️⃣ Buscar ID del cliente
+            const [clienteRows] = await connection.query(
+                "SELECT id_cliente FROM clientes WHERE cedula = ?",
+                [cedula]
+            );
+
+            if (clienteRows.length === 0) {
+                throw new Error("Cliente no existe en la base de datos.");
+            }
+
+            const id_cliente = clienteRows[0].id_cliente;
+
+            // 2️⃣ Insertar factura
             const [facturaResult] = await connection.query(
-                "INSERT INTO factura (cedula, fecha_venta, total) VALUES (?, NOW(), ?)",
-                [cedula, total]
+                "INSERT INTO factura (id_cliente, fecha_venta, total) VALUES (?, NOW(), ?)",
+                [id_cliente, total]
             );
 
             const id_factura = facturaResult.insertId;
 
-            // Insertar detalles
+            // 3️⃣ Insertar detalles
             const detalles = productosValidos.map((p) => [
                 id_factura,
                 p.id_articulo,
                 p.cantidad,
-                p.descuento,
-                p.metodo_pago,
+                p.precio,
+                p.metodo_pago
             ]);
 
             await connection.query(
-                "INSERT INTO detalle_factura (id_factura, id_articulo, cantidad, descuento, metodo_pago) VALUES ?",
+                `INSERT INTO detalle_factura 
+            (id_factura, id_articulo, cantidad, precio_unitario, id_metodo) 
+            VALUES ?`,
                 [detalles]
             );
 
+            // 4️⃣ DESCONTAR STOCK (por cada producto)
+            for (const p of productosValidos) {
+                const { id_articulo, cantidad } = p;
+
+                // Verificar stock antes de descontar
+                const [row] = await connection.query(
+                    "SELECT stock FROM articulos WHERE id_articulo = ?",
+                    [id_articulo]
+                );
+
+                if (row.length === 0) throw new Error("Artículo no encontrado.");
+
+                if (row[0].stock < cantidad) {
+                    throw new Error(`Stock insuficiente para el artículo ID ${id_articulo}`);
+                }
+
+                // Descontar stock
+                await connection.query(
+                    "UPDATE articulos SET stock = stock - ? WHERE id_articulo = ?",
+                    [cantidad, id_articulo]
+                );
+            }
+
             await connection.commit();
             return { message: "Factura creada correctamente", id_factura };
+
         } catch (error) {
             await connection.rollback();
             throw error;
@@ -91,6 +129,8 @@ const FacturaModel = {
             connection.release();
         }
     },
+
+
 
     // Obtener los detalles completos de una factura
     getDetallesById: async (id_factura) => {

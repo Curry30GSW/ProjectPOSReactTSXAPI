@@ -66,10 +66,29 @@ const articuloController = {
     buscar: async (req, res) => {
         try {
             const { q } = req.query;
-            const articulos = await ArticuloModel.buscar(q);
-            res.json(articulos);
+
+            if (!q || q.trim() === '') {
+                return res.status(400).json({
+                    message: 'Parámetro de búsqueda requerido',
+                    error: true
+                });
+            }
+
+            const articulos = await ArticuloModel.buscar(q.trim());
+
+            res.json({
+                success: true,
+                data: articulos,
+                count: articulos.length
+            });
+
         } catch (error) {
-            res.status(500).json({ message: error.message });
+            console.error('Error en búsqueda:', error);
+            res.status(500).json({
+                success: false,
+                message: error.message,
+                error: true
+            });
         }
     },
 };
