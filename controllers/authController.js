@@ -1,56 +1,75 @@
 
 const authModel = require('../models/authModel')
+const empleadoMo = require('../models/empleadosModel')
 const jwt = require('jsonwebtoken');
 
 const authController = {
 
- async  login(req, res)  {
-    try {
-            // falta
-            console.log(req.body)
-            const {cedula, password} = req.body;
+    async login(req, res) {
+        try {
+            const { cedula, password } = req.body;
 
-            if(!cedula || !password){
+            // OBLIGATORIOS
+            if (!cedula || !password) {
                 return res.status(400).json({
-            mensaje: "Cedula y contraseña son requeridas", }) 
-            }   
+                    mensaje: "Cedula y contraseña son requeridas",
+                })
+            }
 
-        const response = await authModel.autenthicate(cedula, password);
-        // if(!user){
-        //     return res.status(401).json({
-        //     mensaje: "Usuario y contraseña son incorrectas"}) 
-        // }
+            // VERIFICAR CEDULA
+            const empleado = await empleadoMo.getByCedula(cedula);
+            if (!empleado) {
+                return res.status(404).json({
+                    mensaje: "La Cedula no existe",
+                })
+            }
 
-        if(!response){ 
-             return res.status(401).json({
-            mensaje: "Usuario y contraseña incorrecta", }) 
-        }
+            // VALIDAR CONTRASEÑA
+            const response = await authModel.autenthicate(cedula, password);
 
-        //  Crear Token
-        const token = jwt.sign({
-            id: String(response.id),
-            nombres:response.nombres,
-            cedula:response.cedula,
-        },
-        process.env.JWT_SECRET,
-        {
-            expiresIn: '15m'
-        }
-    )
-        res.json({
-                mensaje: `Login exitoso, ${response.cedula}`,
+            if (response.status === 'MAL_CONTRASEÑA') {
+                return res.status(401).json({
+                    mensaje: "Cedula o Contraseña incorrecta"
+                })
+            }
+
+            if (response.status !== "OK") {
+                return res.status(400).json({
+                    mensaje: "ERROR INESPERADO",
+                })
+            }
+
+            const user = response.user;
+
+            //  Crear Token
+            const token = jwt.sign({
+                id: String(user.id),
+                nombres: user.nombres,
+                apellidos: user.apellidos,
+                cedula: user.cedula,
+            },
+                process.env.JWT_SECRET,
+                {
+                    expiresIn: '8h'
+                }
+            )
+            res.json({
+                mensaje: `Login exitoso, ${user.cedula}`,
                 token,
-                cedula: response.cedula,
-                nombres: response.nombres,
-        });
+                user: {
+                    cedula: user.cedula,
+                    nombres: user.nombres,
+                    apellidos: user.apellidos
+                }
+            });
 
-    } catch (error) {
-        console.error("Se ha presentando un error en el servidor", error)
-        res.status(500).json({
-            mensaje: "Error en el login", 
-        })
-    }
-},
+        } catch (error) {
+            console.error("Se ha presentando un error en el servidor", error)
+            res.status(500).json({
+                mensaje: "Error en el login",
+            })
+        }
+    },
 
 }
 

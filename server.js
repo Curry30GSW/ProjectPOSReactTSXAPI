@@ -9,6 +9,9 @@ const proveedorRoutes = require('./routes/proveedorRoutes');
 const facturaRoutes = require('./routes/facturaRoutes');
 const empleadosRoutes = require('./routes/empleadosRoutes');
 const cajaRoutes = require('./routes/cajaRoutes');
+const authRoutes = require('./routes/authroutes');
+const cierreRoutes = require('./routes/cierreRoutes');
+const reportesRoutes = require('./routes/reportesRoutes');
 const methodOverride = require('method-override');
 
 
@@ -46,6 +49,9 @@ app.use('/api', proveedorRoutes);
 app.use('/api', facturaRoutes);
 app.use('/api', empleadosRoutes);
 app.use('/api', cajaRoutes);
+app.use('/api', authRoutes);
+app.use('/api', cierreRoutes);
+app.use('/api', reportesRoutes);
 
 // Iniciar servidor
 const PORT = process.env.PORT || 3000;

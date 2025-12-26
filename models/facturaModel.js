@@ -16,13 +16,27 @@ const FacturaModel = {
         return rows[0];
     },
 
-    // Crear una factura simple
-    insert: async (data) => {
-        const [result] = await pool.query(
-            "INSERT INTO factura (fecha_factura, total_factura, productos_factura) VALUES (?, ?, ?)",
-            [data.fecha_factura, data.total_factura, data.productos_factura]
-        );
-        return { id_factura: result.insertId, ...data };
+    //Obtener facturas del día actual
+    getToday: async () => {
+        const [rows] = await pool.query(`
+     SELECT 
+            f.id_factura,
+            f.fecha_venta,
+            f.total,
+            mp.nombre AS metodo_pago,
+            c.cedula,
+            c.nombre
+        FROM factura f
+        INNER JOIN metodo_pago mp 
+            ON f.id_metodo = mp.id_metodo
+        INNER JOIN clientes c
+            ON f.id_cliente = c.id_cliente
+        WHERE f.fecha_venta >= CURDATE()
+        AND f.fecha_venta < CURDATE() + INTERVAL 1 DAY
+        ORDER BY f.id_factura DESC;
+
+    `);
+        return rows;
     },
 
     // Actualizar factura
@@ -53,7 +67,7 @@ const FacturaModel = {
         try {
             await connection.beginTransaction();
 
-            const { cedula, total, productos } = data;
+            const { cedula, total, productos, id_metodo } = data;
             const productosValidos = productos.filter(p => p.id_articulo != null);
 
             if (productosValidos.length === 0) {
@@ -74,8 +88,8 @@ const FacturaModel = {
 
             // 2️⃣ Insertar factura
             const [facturaResult] = await connection.query(
-                "INSERT INTO factura (id_cliente, fecha_venta, total) VALUES (?, NOW(), ?)",
-                [id_cliente, total]
+                "INSERT INTO factura (id_cliente, fecha_venta, total, id_metodo) VALUES (?, NOW(), ?, ?)",
+                [id_cliente, total, id_metodo]
             );
 
             const id_factura = facturaResult.insertId;
@@ -85,13 +99,12 @@ const FacturaModel = {
                 id_factura,
                 p.id_articulo,
                 p.cantidad,
-                p.precio,
-                p.metodo_pago
+                p.precio
             ]);
 
             await connection.query(
                 `INSERT INTO detalle_factura 
-            (id_factura, id_articulo, cantidad, precio_unitario, id_metodo) 
+            (id_factura, id_articulo, cantidad, precio_unitario) 
             VALUES ?`,
                 [detalles]
             );
@@ -130,46 +143,123 @@ const FacturaModel = {
         }
     },
 
-
-
     // Obtener los detalles completos de una factura
     getDetallesById: async (id_factura) => {
         // 1️⃣ Obtenemos la factura y datos del cliente asociado
         const [factura] = await pool.query(`
-    SELECT 
-      f.id_factura,
-      f.fecha_venta,
-      f.total,
-      c.id_cliente,
-      c.cedula,
-      c.nombre,
-      c.correo,
-      c.telefono
-    FROM factura f
-    JOIN clientes c ON f.id_cliente = c.id_cliente
-    WHERE f.id_factura = ?
-  `, [id_factura]);
+          SELECT 
+                f.id_factura,
+                f.fecha_venta,
+                f.total,
+                c.id_cliente,
+                c.cedula,
+                c.nombre,
+                c.correo,
+                c.telefono,
+                mp.nombre AS metodo_pago
+            FROM factura f
+            JOIN clientes c ON f.id_cliente = c.id_cliente
+            JOIN metodo_pago mp ON f.id_metodo = mp.id_metodo
+            WHERE f.id_factura = ?
+
+        `, [id_factura]);
 
         if (factura.length === 0) throw new Error("Factura no encontrada.");
 
         // 2️⃣ Obtenemos los detalles de los artículos y el método de pago
         const [detalles] = await pool.query(`
-    SELECT 
-      df.id_detalle,
-      df.cantidad,
-      df.precio_unitario,
-      a.descripcion AS articulo,
-      a.codigo_barras,
-      mp.nombre AS metodo_pago
-    FROM detalle_factura df
-    JOIN articulos a ON df.id_articulo = a.id_articulo
-    JOIN metodo_pago mp ON df.id_metodo = mp.id_metodo
-    WHERE df.id_factura = ?
-  `, [id_factura]);
+               SELECT 
+                    df.id_detalle,
+                    df.cantidad,
+                    df.precio_unitario,
+                    a.descripcion AS articulo,
+                    a.codigo_barras
+                FROM detalle_factura df
+                JOIN articulos a ON df.id_articulo = a.id_articulo
+                WHERE df.id_factura = ?
+
+            `, [id_factura]);
 
         // 3️⃣ Retornamos todo junto
         return { factura: factura[0], detalles };
     },
+
+    getFacturas: async ({ cedula, id_factura }) => {
+
+        let where = "";
+        let params = [];
+
+        if (cedula) {
+            where = "WHERE c.cedula = ?";
+            params.push(cedula);
+        }
+
+        if (id_factura) {
+            where = "WHERE f.id_factura = ?";
+            params = [id_factura];
+        }
+
+        const [facturas] = await pool.query(`
+        SELECT
+            f.id_factura,
+            f.fecha_venta,
+            f.total,
+            c.cedula,
+            c.nombre,
+            mp.nombre AS metodo_pago
+        FROM factura f
+        JOIN clientes c ON f.id_cliente = c.id_cliente
+        JOIN metodo_pago mp ON f.id_metodo = mp.id_metodo
+        ${where}
+        ORDER BY f.fecha_venta DESC
+    `, params);
+
+        return facturas;
+    },
+
+    //Obtener facturas de la semana
+    getWeek: async () => {
+        const [rows] = await pool.query(`
+            SELECT 
+                f.id_factura,
+                f.fecha_venta,
+                f.total,
+                mp.nombre AS metodo_pago,
+                c.cedula,
+                c.nombre
+            FROM factura f
+            INNER JOIN metodo_pago mp 
+                ON f.id_metodo = mp.id_metodo
+            INNER JOIN clientes c
+                ON f.id_cliente = c.id_cliente
+            WHERE f.fecha_venta >= DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY)
+              AND f.fecha_venta < DATE_SUB(CURDATE(), INTERVAL WEEKDAY(CURDATE()) DAY) + INTERVAL 7 DAY
+            ORDER BY f.id_factura DESC;
+        `);
+
+        return rows;
+    },
+
+    getMonth: async () => {
+        const [rows] = await pool.query(`
+            SELECT 
+                f.id_factura,
+                f.fecha_venta,
+                f.total,
+                mp.nombre AS metodo_pago,
+                c.cedula,
+                c.nombre
+            FROM factura f
+            INNER JOIN metodo_pago mp 
+                ON f.id_metodo = mp.id_metodo
+            INNER JOIN clientes c
+                ON f.id_cliente = c.id_cliente
+            WHERE f.fecha_venta >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+              AND f.fecha_venta < DATE_FORMAT(CURDATE(), '%Y-%m-01') + INTERVAL 1 MONTH
+            ORDER BY f.id_factura DESC;
+        `);
+        return rows;
+    }
 
 };
 

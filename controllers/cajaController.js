@@ -80,7 +80,73 @@ const CajaController = {
             console.error("Error en actualizarEfectivoInicial:", error);
             res.status(500).json({ error: "Error interno del servidor" });
         }
+    },
+
+
+    guardar: async (req, res) => {
+        try {
+            const {
+                id_caja,
+                efectivo_inicial,
+                total_ventas,
+                total_efectivo,
+                total_transferencias,
+                total_tarjetas,
+                total_mixto,
+                efectivo_esperado,
+                efectivo_contado,
+                diferencia,
+                observaciones,
+                usuario_cierre
+            } = req.body;
+
+            const id_cierre = await CajaModel.guardar({
+                id_caja,
+                efectivo_inicial,
+                total_ventas,
+                total_efectivo,
+                total_transferencias,
+                total_tarjetas,
+                total_mixto,
+                efectivo_esperado,
+                efectivo_contado,
+                diferencia,
+                observaciones,
+                usuario_cierre
+            });
+
+            return res.status(201).json({
+                message: "Cierre de caja guardado exitosamente",
+                id_cierre
+            });
+
+        } catch (error) {
+            console.error("Error al guardar cierre:", error);
+            return res.status(500).json({
+                error: "Error interno del servidor"
+            });
+        }
+    },
+
+    verificarCierreHoy: async (req, res) => {
+        try {
+            const resultado = await CajaModel.verificarCierreExisteHoy();
+
+            return res.json({
+                ok: true,
+                ...resultado
+            });
+
+        } catch (error) {
+            console.error("Error verificando cierre de hoy:", error);
+            return res.status(500).json({
+                ok: false,
+                mensaje: "Error interno del servidor"
+            });
+        }
     }
+
+
 };
 
 module.exports = CajaController;

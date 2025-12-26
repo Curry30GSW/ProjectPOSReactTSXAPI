@@ -21,6 +21,16 @@ const facturaController = {
         }
     },
 
+    getToday: async (req, res) => {
+        try {
+            const facturas = await FacturaModel.getToday();
+            res.status(200).json(facturas);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: "Error al obtener las facturas del día" });
+        }
+    },
+
     insert: async (req, res) => {
         try {
             const data = req.body;
@@ -79,6 +89,57 @@ const facturaController = {
             res.status(400).json({ message: error.message });
         }
     },
+
+    getFacturas: async (req, res) => {
+        try {
+            const { cedula, id_factura } = req.query;
+
+
+            if (!cedula && !id_factura) {
+                return res.status(400).json({
+                    message: "Debe proporcionar una cédula o un id_factura."
+                });
+            }
+
+            const facturas = await FacturaModel.getFacturas({
+                cedula,
+                id_factura
+            });
+
+            return res.status(200).json(facturas);
+
+        } catch (error) {
+            console.error("Error al obtener facturas:", error);
+            return res.status(500).json({
+                message: "Error interno del servidor."
+            });
+        }
+
+
+    },
+
+    getWeek: async (req, res) => {
+        try {
+            const facturas = await FacturaModel.getWeek();
+            res.status(200).json(facturas);
+        } catch (error) {
+            console.error("Error al obtener facturas de la semana:", error);
+            res.status(500).json({
+                error: "Error al obtener las facturas de la semana"
+            });
+        }
+    },
+
+
+    getMonth: async (req, res) => {
+        try {
+            const facturas = await FacturaModel.getMonth();
+            res.status(200).json(facturas);
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: "Error al obtener las facturas del mes" });
+        }
+    }
 };
 
 module.exports = facturaController;
