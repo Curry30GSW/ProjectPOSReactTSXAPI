@@ -6,7 +6,7 @@ const authModel = {
     autenthicate: async (cedula, password) => {
         try {
 
-            const query = `SELECT cedula, nombres, apellidos, correo, password from empleados WHERE LOWER(TRIM(cedula)) = LOWER(TRIM(?))`
+            const query = `SELECT cedula, password from empleados WHERE LOWER(TRIM(cedula)) = LOWER(TRIM(?))`
             const [users] = await pool.query(query, [cedula])
 
             if (users.length === 0) {
@@ -14,9 +14,9 @@ const authModel = {
             }
 
             const user = users[0];
-            // para encriptar la contraseña
+
             const isMath = await bcrypt.compare(password, user.password)
-            // contraseña incorrecta
+
             if (!isMath) {
                 return { status: 'MAL_CONTRASEÑA' };;
             }

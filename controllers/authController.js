@@ -44,8 +44,6 @@ const authController = {
             //  Crear Token
             const token = jwt.sign({
                 id: String(user.id),
-                nombres: user.nombres,
-                apellidos: user.apellidos,
                 cedula: user.cedula,
             },
                 process.env.JWT_SECRET,

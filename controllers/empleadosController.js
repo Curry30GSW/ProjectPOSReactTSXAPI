@@ -12,11 +12,34 @@ const EmpleadosController = {
         }
     },
 
+    getEmpleadosByCedula: async (req, res) => {
+        try {
+            const { cedula } = req.params
+
+            if (!cedula) {
+                return res.status(400).json({
+                    message: "La cédula es requerida"
+                });
+            }
+
+            const empleados = await EmpleadosModel.getByCedula(cedula);
+            if (!empleados) {
+                return res.status(400).json({
+                    message: "El empleado no existe"
+                });
+            }
+
+            res.json(empleados);
+        } catch (error) {
+            console.error("❌ Error en getEmpleados:", error);
+            res.status(500).json({ message: "Error al obtener empleados", error: error.message });
+        }
+    },
+
 
     crearEmpleado: async (req, res) => {
         try {
             const { cedula, nombres, apellidos, correo, password, telefono, cargo } = req.body;
-            console.log("BODY RECIBIDO:", req.body);
             const estado = 1;
 
             if (!cedula || !nombres || !apellidos || !correo || !password || !telefono || !cargo) {
@@ -32,10 +55,13 @@ const EmpleadosController = {
                 return res.status(400).json({ message: "La cédula ya está registrada en el sistema." });
             }
 
-            // console.log("DATA RECIBIDA EN MODEL:", data);
+            const passwordPlano = cedula.toString()
 
-            const data = { cedula, nombres, apellidos, correo, password, telefono, cargo, estado };
-            const results = await EmpleadosModel.insert(req.body);
+            const salt = await bcrypt.genSalt(10);
+            const passwordHash = await bcrypt.hash(passwordPlano, salt);
+
+            const data = { cedula, nombres, apellidos, correo, passwordHash, telefono, cargo, estado };
+            const results = await EmpleadosModel.insert(data);
 
 
             res.json({ message: "Empleado registrado exitosamente.", results });
@@ -59,6 +85,52 @@ const EmpleadosController = {
             res.json({ message: "Empleado actualizado correctamente", results });
         } catch (error) {
             res.status(500).json({ message: "Error al actualizar empleado", error });
+        }
+    },
+
+    eliminarFoto: async (req, res) => {
+        try {
+            const { cedula } = req.params;
+
+            await EmpleadosModel.updateFotoPerfil(cedula, null);
+
+            res.json({
+                message: "Foto de perfil eliminada correctamente",
+                foto_perfil: null
+            });
+        } catch (error) {
+            res.status(500).json({
+                message: "Error al eliminar foto",
+                error: error.message
+            });
+        }
+    },
+
+    actualizarFoto: async (req, res) => {
+        try {
+
+            const { cedula } = req.params;
+
+            if (!req.files || !req.files.foto_perfil) {
+                return res.status(400).json({
+                    message: "No se envio datos de la foto"
+                });
+            }
+
+            const foto = req.files.foto_perfil[0];
+
+            const rutaFoto = `/uploads/fotoPerfil/${foto.filename}`;
+
+            await EmpleadosModel.updateFotoPerfil(cedula, rutaFoto);
+
+            res.json({
+                message: "Foto de perfil actualizada correctamente",
+                foto_perfil: rutaFoto
+            })
+
+        } catch (error) {
+            res.status(500).json({ message: "Error al actualizar foto", error });
+
         }
     },
 

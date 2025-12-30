@@ -23,6 +23,7 @@ const FacturaModel = {
             f.id_factura,
             f.fecha_venta,
             f.total,
+            f.total_iva,
             mp.nombre AS metodo_pago,
             c.cedula,
             c.nombre
@@ -67,7 +68,7 @@ const FacturaModel = {
         try {
             await connection.beginTransaction();
 
-            const { cedula, total, productos, id_metodo } = data;
+            const { cedula, total, totalIva, productos, id_metodo } = data;
             const productosValidos = productos.filter(p => p.id_articulo != null);
 
             if (productosValidos.length === 0) {
@@ -88,8 +89,8 @@ const FacturaModel = {
 
             // 2️⃣ Insertar factura
             const [facturaResult] = await connection.query(
-                "INSERT INTO factura (id_cliente, fecha_venta, total, id_metodo) VALUES (?, NOW(), ?, ?)",
-                [id_cliente, total, id_metodo]
+                "INSERT INTO factura (id_cliente, fecha_venta, total, total_iva, id_metodo) VALUES (?, NOW(), ?, ?, ?)",
+                [id_cliente, total, totalIva, id_metodo]
             );
 
             const id_factura = facturaResult.insertId;
@@ -151,6 +152,7 @@ const FacturaModel = {
                 f.id_factura,
                 f.fecha_venta,
                 f.total,
+                f.total_iva,
                 c.id_cliente,
                 c.cedula,
                 c.nombre,
@@ -204,6 +206,7 @@ const FacturaModel = {
             f.id_factura,
             f.fecha_venta,
             f.total,
+            f.total_iva,
             c.cedula,
             c.nombre,
             mp.nombre AS metodo_pago
@@ -224,6 +227,7 @@ const FacturaModel = {
                 f.id_factura,
                 f.fecha_venta,
                 f.total,
+                f.total_iva,
                 mp.nombre AS metodo_pago,
                 c.cedula,
                 c.nombre
@@ -246,6 +250,7 @@ const FacturaModel = {
                 f.id_factura,
                 f.fecha_venta,
                 f.total,
+                f.total_iva,
                 mp.nombre AS metodo_pago,
                 c.cedula,
                 c.nombre
